@@ -68,7 +68,8 @@ local function SaveRecordingToFile()
             CameraCFrame = CFrameToTable(frame[4]),
             MouseClicks = frame[5],
             MouseDelta = {frame[6].X, frame[6].Y},
-            TimeStamp = frame[7]
+            TimeStamp = frame[7],
+            MousePos = {frame[8].X, frame[8].Y}
         })
     end
     pcall(function()
@@ -92,7 +93,8 @@ local function LoadRecordingFromFile()
                 TableToCFrame(frame.CameraCFrame),
                 frame.MouseClicks,
                 Vector3.new(frame.MouseDelta[1], frame.MouseDelta[2], 0),
-                frame.TimeStamp
+                frame.TimeStamp,
+                Vector2.new(frame.MousePos and frame.MousePos[1] or 0, frame.MousePos and frame.MousePos[2] or 0)
             })
         end
     end
@@ -133,6 +135,7 @@ local function StartRecord()
 
                 local mouseClicks = getMouseClicks()
                 local mouseDelta = UserInputService:GetMouseDelta()
+                local mousePos = UserInputService:GetMouseLocation()
 
                 table.insert(Frames, {
                     HRP.CFrame,
@@ -141,7 +144,8 @@ local function StartRecord()
                     Camera.CFrame,
                     mouseClicks,
                     mouseDelta,
-                    tick() - TimeStart
+                    tick() - TimeStart,
+                    mousePos
                 })
             end
         end
@@ -211,31 +215,35 @@ local function PlayTAS()
 
                 Camera.CFrame = Frame[4]
 
+                -- Replay exact 2D Screen Position
+                local mousePos = Frame[8] or Vector2.zero
+                
+                -- Replay Mouse Delta Movement
                 local mouseDelta = Frame[6]
                 if mouseDelta ~= Vector3.zero then
                     VirtualInputManager:SendMouseMoveEvent(mouseDelta.X, mouseDelta.Y, game)
                 end
 
+                -- Replay Mouse Clicks at exact recorded 2D coordinates
                 local clickData = Frame[5]
-                local currentViewport = Camera.ViewportSize
-                local screenCenter = Vector2.new(currentViewport.X / 2, currentViewport.Y / 2)
 
                 if clickData[1] and not MouseState.Button1 then
                     MouseState.Button1 = true
-                    VirtualInputManager:SendMouseButtonEvent(screenCenter.X, screenCenter.Y, 0, true, game, 0)
+                    VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, true, game, 0)
                 elseif not clickData[1] and MouseState.Button1 then
                     MouseState.Button1 = false
-                    VirtualInputManager:SendMouseButtonEvent(screenCenter.X, screenCenter.Y, 0, false, game, 0)
+                    VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, false, game, 0)
                 end
 
                 if clickData[2] and not MouseState.Button2 then
                     MouseState.Button2 = true
-                    VirtualInputManager:SendMouseButtonEvent(screenCenter.X, screenCenter.Y, 1, true, game, 0)
+                    VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 1, true, game, 0)
                 elseif not clickData[2] and MouseState.Button2 then
                     MouseState.Button2 = false
-                    VirtualInputManager:SendMouseButtonEvent(screenCenter.X, screenCenter.Y, 1, false, game, 0)
+                    VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 1, false, game, 0)
                 end
 
+                -- Replay Keyboard Inputs
                 local frameKeysLookup = {}
                 for _, keyCode in ipairs(Frame[3]) do
                     frameKeysLookup[keyCode] = true
