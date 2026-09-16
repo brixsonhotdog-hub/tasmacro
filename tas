@@ -267,9 +267,9 @@ end
 -- Rayfield UI Integration
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local Window = Rayfield:CreateWindow({
-   Name = "Global Keyboard & Mouse TAS",
-   LoadingTitle = "Full Input TAS Engine",
-   LoadingSubtitle = "by tomato.txt",
+   Name = "macro by joey",
+   LoadingTitle = "macro by joey dqae",
+   LoadingSubtitle = "by joey",
    ConfigurationSaving = {
        Enabled = true,
        FolderName = "tomato.txt",
