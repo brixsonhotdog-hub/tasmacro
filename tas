@@ -20,15 +20,6 @@ local MouseState = {
     Button2 = false
 }
 
--- Auto-Execute setup for Server Hopping / Rejoining
-local queueOnTeleport = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport)
-if queueOnTeleport then
-    queueOnTeleport([[
-        repeat task.wait() until game:IsLoaded()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/brixsonhotdog-hub/tasmacro/refs/heads/main/tas"))()
-    ]])
-end
-
 local function getChar()
     local Character = Player.Character
     if Character then
@@ -272,8 +263,8 @@ local Window = Rayfield:CreateWindow({
    LoadingSubtitle = "by joey",
    ConfigurationSaving = {
        Enabled = true,
-       FolderName = "tomato.txt",
-       FileName = "Global Input TAS"
+       FolderName = "joey.txt",
+       FileName = "Joey Macro"
    },
    Discord = { Enabled = false },
    KeySystem = false
