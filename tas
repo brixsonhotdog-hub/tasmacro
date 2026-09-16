@@ -25,7 +25,7 @@ local queueOnTeleport = (syn and syn.queue_on_teleport) or queue_on_teleport or 
 if queueOnTeleport then
     queueOnTeleport([[
         repeat task.wait() until game:IsLoaded()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/brixsonhotdog-hub/joeyy/refs/heads/main/tas?token=GHSAT0AAAAAAEJF4D646GCQV77ON6MIXWVM2VKKADA"))()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/brixsonhotdog-hub/tasmacro/refs/heads/main/tas"))()
     ]])
 end
 
