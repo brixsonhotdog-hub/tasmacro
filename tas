@@ -1,310 +1,603 @@
 local UserInputService = game:GetService("UserInputService")
+
 local VirtualInputManager = game:GetService("VirtualInputManager")
+
 local RunService = game:GetService("RunService")
+
 local HttpService = game:GetService("HttpService")
+
 local Players = game:GetService("Players")
 
+
+
 local Player = Players.LocalPlayer
+
 local Camera = workspace.CurrentCamera
+
+
 
 local RECORDING_FILE = "Global_TAS_Recording.json"
 
+
+
 local Running = false
+
 local Replaying = false
+
 local Frames = {}
+
 local TimeStart = 0
 
+
+
 local CurrentlyHeldKeys = {}
+
 local MouseState = {
+
     Button1 = false,
+
     Button2 = false
+
 }
 
--- SAFELY FETCH CHARACTER WITHOUT INFINITE YIELD / SPAWN BREAKS
+
+
 local function getChar()
+
     local Character = Player.Character
-    if Character and Character:Parent() then
+
+    if Character then
+
         return Character
+
+    else
+
+        return Player.CharacterAdded:Wait()
+
     end
-    return nil
+
 end
+
+
 
 -- Serialization Helpers for File Persistence
+
 local function CFrameToTable(cf) return {cf:GetComponents()} end
+
 local function TableToCFrame(tbl) return CFrame.new(unpack(tbl)) end
 
+
+
 local function KeyCodesToStrings(keys)
+
     local strings = {}
+
     for _, key in ipairs(keys) do table.insert(strings, key.Name) end
+
     return strings
+
 end
+
+
 
 local function StringsToKeyCodes(strings)
+
     local keys = {}
+
     for _, str in ipairs(strings) do
+
         if Enum.KeyCode[str] then table.insert(keys, Enum.KeyCode[str]) end
+
     end
+
     return keys
+
 end
+
+
 
 -- Save Recorded Frames to Executor Workspace
+
 local function SaveRecordingToFile()
+
     if not writefile then return end
+
     local exportData = {}
+
     for _, frame in ipairs(Frames) do
+
         table.insert(exportData, {
+
             HRP_CFrame = CFrameToTable(frame[1]),
+
             HumanoidState = frame[2],
+
             Keys = KeyCodesToStrings(frame[3]),
+
             CameraCFrame = CFrameToTable(frame[4]),
+
             MouseClicks = frame[5],
+
             MouseDelta = {frame[6].X, frame[6].Y},
+
             TimeStamp = frame[7],
+
             MousePos = {frame[8].X, frame[8].Y}
+
         })
+
     end
+
     pcall(function()
+
         writefile(RECORDING_FILE, HttpService:JSONEncode(exportData))
+
     end)
+
 end
+
+
 
 -- Load Recorded Frames from Executor Workspace
+
 local function LoadRecordingFromFile()
+
     if not isfile or not isfile(RECORDING_FILE) then return end
+
     local success, result = pcall(function()
+
         return HttpService:JSONDecode(readfile(RECORDING_FILE))
+
     end)
+
     if success and result then
+
         Frames = {}
+
         for _, frame in ipairs(result) do
+
             table.insert(Frames, {
+
                 TableToCFrame(frame.HRP_CFrame),
+
                 frame.HumanoidState,
+
                 StringsToKeyCodes(frame.Keys),
+
                 TableToCFrame(frame.CameraCFrame),
+
                 frame.MouseClicks,
+
                 Vector3.new(frame.MouseDelta[1], frame.MouseDelta[2], 0),
+
                 frame.TimeStamp,
+
                 Vector2.new(frame.MousePos and frame.MousePos[1] or 0, frame.MousePos and frame.MousePos[2] or 0)
+
             })
+
         end
+
     end
+
 end
+
+
 
 -- Load saved recording on execution
+
 LoadRecordingFromFile()
 
+
+
 -- Track Mouse Buttons
+
 local function getMouseClicks()
+
     return {
+
         UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1),
+
         UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+
     }
+
 end
+
+
 
 -- Start Recording
+
 local function StartRecord()
-    if Replaying or Running then return end
+
+    if Replaying then return end
+
     Frames = {}
+
     Running = true
+
     TimeStart = tick()
 
-    task.spawn(function()
-        while Running do
-            RunService.Heartbeat:Wait()
-            local Character = getChar()
-            if Character then
-                local HRP = Character:FindFirstChild("HumanoidRootPart")
-                local Humanoid = Character:FindFirstChildOfClass("Humanoid")
 
-                if HRP and Humanoid then
-                    local activeKeys = {}
-                    for _, input in ipairs(UserInputService:GetKeysPressed()) do
-                        if input.UserInputType == Enum.UserInputType.Keyboard then
-                            table.insert(activeKeys, input.KeyCode)
-                        end
+
+    task.spawn(function()
+
+        while Running do
+
+            RunService.Heartbeat:Wait()
+
+            local Character = getChar()
+
+            local HRP = Character:FindFirstChild("HumanoidRootPart")
+
+            local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+
+
+
+            if HRP and Humanoid then
+
+                local activeKeys = {}
+
+                for _, input in ipairs(UserInputService:GetKeysPressed()) do
+
+                    if input.UserInputType == Enum.UserInputType.Keyboard then
+
+                        table.insert(activeKeys, input.KeyCode)
+
                     end
 
-                    local mouseClicks = getMouseClicks()
-                    local mouseDelta = UserInputService:GetMouseDelta()
-                    local mousePos = UserInputService:GetMouseLocation()
-
-                    table.insert(Frames, {
-                        HRP.CFrame,
-                        Humanoid:GetState().Value,
-                        activeKeys,
-                        Camera.CFrame,
-                        mouseClicks,
-                        mouseDelta,
-                        tick() - TimeStart,
-                        mousePos
-                    })
                 end
+
+
+
+                local mouseClicks = getMouseClicks()
+
+                local mouseDelta = UserInputService:GetMouseDelta()
+
+                local mousePos = UserInputService:GetMouseLocation()
+
+
+
+                table.insert(Frames, {
+
+                    HRP.CFrame,
+
+                    Humanoid:GetState().Value,
+
+                    activeKeys,
+
+                    Camera.CFrame,
+
+                    mouseClicks,
+
+                    mouseDelta,
+
+                    tick() - TimeStart,
+
+                    mousePos
+
+                })
+
             end
+
         end
+
     end)
+
 end
+
+
 
 -- Stop Recording & Save File
+
 local function StopRecord()
+
     if Running then
+
         Running = false
+
         SaveRecordingToFile()
+
     end
+
 end
 
+
+
 -- Playback TAS Engine
+
 local function PlayTAS()
+
     if #Frames == 0 or Replaying or Running then return end
+
     Replaying = true
 
+
+
     local Character = getChar()
-    if Character then
-        local HRP = Character:FindFirstChild("HumanoidRootPart")
-        if HRP then
-            HRP.CFrame = Frames[1][1]
-            HRP.AssemblyLinearVelocity = Vector3.zero
-            HRP.AssemblyAngularVelocity = Vector3.zero
-        end
+
+    local HRP = Character:FindFirstChild("HumanoidRootPart")
+
+    
+
+    if HRP then
+
+        HRP.CFrame = Frames[1][1]
+
+        HRP.AssemblyLinearVelocity = Vector3.zero
+
+        HRP.AssemblyAngularVelocity = Vector3.zero
+
     end
 
+
+
     local TimePlay = tick()
+
     local FrameCount = #Frames
+
     local OldFrame = 1
+
     local TASLoop
 
+
+
     TASLoop = RunService.Heartbeat:Connect(function()
+
         local CurrentTime = tick()
+
         local Elapsed = CurrentTime - TimePlay
 
+
+
         if Elapsed >= Frames[FrameCount][7] or not Replaying then
+
             for keyCode in pairs(CurrentlyHeldKeys) do
+
                 VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
+
             end
+
             if MouseState.Button1 then
+
                 VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+
             end
+
             if MouseState.Button2 then
+
                 VirtualInputManager:SendMouseButtonEvent(0, 0, 1, false, game, 0)
+
             end
+
+
 
             CurrentlyHeldKeys = {}
+
             MouseState.Button1 = false
+
             MouseState.Button2 = false
 
+
+
             TASLoop:Disconnect()
+
             Replaying = false
+
             return
+
         end
 
-        local CurrentCharacter = getChar()
-        local CurrentHRP = CurrentCharacter and CurrentCharacter:FindFirstChild("HumanoidRootPart")
-        local CurrentHumanoid = CurrentCharacter and CurrentCharacter:FindFirstChildOfClass("Humanoid")
+
 
         local NewFrames = math.min(OldFrame + 60, FrameCount)
+
         for i = OldFrame, NewFrames do
+
             local Frame = Frames[i]
+
             if Frame[7] <= Elapsed then
+
                 OldFrame = i
 
-                if CurrentHRP then CurrentHRP.CFrame = Frame[1] end
-                if CurrentHumanoid then CurrentHumanoid:ChangeState(Frame[2]) end
+
+
+                if HRP then HRP.CFrame = Frame[1] end
+
+                local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+
+                if Humanoid then Humanoid:ChangeState(Frame[2]) end
+
+
 
                 Camera.CFrame = Frame[4]
 
+
+
+                -- Replay exact 2D Screen Position
+
                 local mousePos = Frame[8] or Vector2.zero
+
+                
+
+                -- Replay Mouse Delta Movement
+
                 local mouseDelta = Frame[6]
+
                 if mouseDelta ~= Vector3.zero then
+
                     VirtualInputManager:SendMouseMoveEvent(mouseDelta.X, mouseDelta.Y, game)
+
                 end
+
+
+
+                -- Replay Mouse Clicks at exact recorded 2D coordinates
 
                 local clickData = Frame[5]
 
+
+
                 if clickData[1] and not MouseState.Button1 then
+
                     MouseState.Button1 = true
+
                     VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, true, game, 0)
+
                 elseif not clickData[1] and MouseState.Button1 then
+
                     MouseState.Button1 = false
+
                     VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, false, game, 0)
+
                 end
+
+
 
                 if clickData[2] and not MouseState.Button2 then
+
                     MouseState.Button2 = true
+
                     VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 1, true, game, 0)
+
                 elseif not clickData[2] and MouseState.Button2 then
+
                     MouseState.Button2 = false
+
                     VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 1, false, game, 0)
+
                 end
+
+
+
+                -- Replay Keyboard Inputs
 
                 local frameKeysLookup = {}
+
                 for _, keyCode in ipairs(Frame[3]) do
+
                     frameKeysLookup[keyCode] = true
+
                     if not CurrentlyHeldKeys[keyCode] then
+
                         CurrentlyHeldKeys[keyCode] = true
+
                         VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
+
                     end
+
                 end
+
+
 
                 for keyCode in pairs(CurrentlyHeldKeys) do
+
                     if not frameKeysLookup[keyCode] then
+
                         CurrentlyHeldKeys[keyCode] = nil
+
                         VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
+
                     end
+
                 end
+
             end
+
         end
+
     end)
+
 end
 
+
+
 -- Rayfield UI Integration
+
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
 local Window = Rayfield:CreateWindow({
-    Name = "macro by joey",
-    LoadingTitle = "macro by joey dqae",
-    LoadingSubtitle = "by joey",
-    ConfigurationSaving = {
-        Enabled = false
-    },
-    Discord = { Enabled = false },
-    KeySystem = false
+
+   Name = "macro by joey",
+
+   LoadingTitle = "macro by joey dqae",
+
+   LoadingSubtitle = "by joey",
+
+   ConfigurationSaving = {
+
+       Enabled = true,
+
+       FolderName = "joey.txt",
+
+       FileName = "Joey Macro"
+
+   },
+
+   Discord = { Enabled = false },
+
+   KeySystem = false
+
 })
+
+
 
 local Tab = Window:CreateTab("Control", 4483362458)
+
 local Section = Tab:CreateSection("Record & Playback Controls")
 
+
+
 Tab:CreateButton({ Name = "Start Recording", Callback = StartRecord })
+
 Tab:CreateButton({ Name = "Stop Recording", Callback = StopRecord })
+
 Tab:CreateButton({ Name = "Play Macro", Callback = PlayTAS })
 
-Tab:CreateKeybind({
-    Name = "Start Recording BIND",
-    CurrentKeybind = "J",
-    HoldToInteract = false,
-    Flag = "StartRecord",
-    Callback = StartRecord,
-})
+
 
 Tab:CreateKeybind({
-    Name = "Stop Recording BIND",
-    CurrentKeybind = "K",
-    HoldToInteract = false,
-    Flag = "StopRecord",
-    Callback = StopRecord,
+
+   Name = "Start Recording BIND",
+
+   CurrentKeybind = "J",
+
+   HoldToInteract = false,
+
+   Flag = "StartRecord",
+
+   Callback = StartRecord,
+
 })
+
+
 
 Tab:CreateKeybind({
-    Name = "Play BIND",
-    CurrentKeybind = "P",
-    HoldToInteract = false,
-    Flag = "PlayTAS",
-    Callback = PlayTAS,
+
+   Name = "Stop Recording BIND",
+
+   CurrentKeybind = "K",
+
+   HoldToInteract = false,
+
+   Flag = "StopRecord",
+
+   Callback = StopRecord,
+
 })
 
--- Fix to force Rayfield GUI to persist across resets
-pcall(function()
-    local CoreGui = game:GetService("CoreGui")
-    local gui = CoreGui:FindFirstChild("Rayfield") or Player:FindFirstChild("PlayerGui"):FindFirstChild("Rayfield")
-    if gui then
-        gui.ResetOnSpawn = false
-    end
-end)
+
+
+Tab:CreateKeybind({
+
+   Name = "Play BIND",
+
+   CurrentKeybind = "P",
+
+   HoldToInteract = false,
+
+   Flag = "PlayTAS",
+
+   Callback = PlayTAS,
+
+})
