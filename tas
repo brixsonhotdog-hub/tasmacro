@@ -20,13 +20,13 @@ local MouseState = {
     Button2 = false
 }
 
+-- FIXED: Safely fetch current character even after reset
 local function getChar()
     local Character = Player.Character
-    if Character then
+    if Character and Character:Parent() then
         return Character
-    else
-        return Player.CharacterAdded:Wait()
     end
+    return Player.CharacterAdded:Wait()
 end
 
 -- Serialization Helpers for File Persistence
@@ -156,6 +156,7 @@ local function PlayTAS()
     if #Frames == 0 or Replaying or Running then return end
     Replaying = true
 
+    -- Ensure we have the active character after reset
     local Character = getChar()
     local HRP = Character:FindFirstChild("HumanoidRootPart")
     
@@ -194,15 +195,20 @@ local function PlayTAS()
             return
         end
 
+        -- FIXED: Re-fetch current character dynamically on every frame loop 
+        -- so playback doesn't break if you reset during replay
+        local CurrentCharacter = Player.Character
+        local CurrentHRP = CurrentCharacter and CurrentCharacter:FindFirstChild("HumanoidRootPart")
+        local CurrentHumanoid = CurrentCharacter and CurrentCharacter:FindFirstChildOfClass("Humanoid")
+
         local NewFrames = math.min(OldFrame + 60, FrameCount)
         for i = OldFrame, NewFrames do
             local Frame = Frames[i]
             if Frame[7] <= Elapsed then
                 OldFrame = i
 
-                if HRP then HRP.CFrame = Frame[1] end
-                local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-                if Humanoid then Humanoid:ChangeState(Frame[2]) end
+                if CurrentHRP then CurrentHRP.CFrame = Frame[1] end
+                if CurrentHumanoid then CurrentHumanoid:ChangeState(Frame[2]) end
 
                 Camera.CFrame = Frame[4]
 
