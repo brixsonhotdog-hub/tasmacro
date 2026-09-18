@@ -362,7 +362,7 @@ task.spawn(function()
     SaveManager:LoadAutoloadConfig()
     
     -- Wait 2 seconds before activating play mode
-    task.wait(2)
+    task.wait(5)
     
     if #Frames > 0 then
         PlayToggle:SetValue(true)
