@@ -339,7 +339,9 @@ Tabs.Main:AddKeybind("PlayTASBind", {
     end
 })
 
--- Config Manager Integration
+------------------------------------------------------------------
+-- SAVE MANAGER INITIALIZATION FIX
+------------------------------------------------------------------
 SaveManager:SetLibrary(Fluent)
 InterfaceManager:SetLibrary(Fluent)
 
@@ -353,4 +355,9 @@ InterfaceManager:BuildInterfaceSection(Tabs.Settings)
 SaveManager:BuildConfigSection(Tabs.Settings)
 
 Window:SelectTab(1)
-SaveManager:LoadAutoloadConfig()
+
+-- Defer loading autoload to ensure all elements are properly mounted in Fluent.Options
+task.spawn(function()
+    task.wait(0.5)
+    SaveManager:LoadAutoloadConfig()
+end)
