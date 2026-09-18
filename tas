@@ -320,11 +320,11 @@ Tabs.Main:AddKeybind("StopRecordBind", {
 -- Section: Playback Controls
 Tabs.Main:AddSection("Playback Controls")
 
--- Toggleable Play Macro Button
+-- Toggleable Play Macro Button (Default set to true)
 local PlayToggle = Tabs.Main:AddToggle("PlayToggle", {
     Title = "Play Macro",
     Description = "Turn playback ON to execute recording, turn OFF to stop",
-    Default = false,
+    Default = true,
     Callback = function(Value)
         SetPlayTAS(Value)
     end
@@ -340,7 +340,7 @@ Tabs.Main:AddKeybind("PlayTASBind", {
 })
 
 ------------------------------------------------------------------
--- SAVE MANAGER INITIALIZATION FIX
+-- SAVE MANAGER INITIALIZATION FIX & AUTO START
 ------------------------------------------------------------------
 SaveManager:SetLibrary(Fluent)
 InterfaceManager:SetLibrary(Fluent)
@@ -356,8 +356,13 @@ SaveManager:BuildConfigSection(Tabs.Settings)
 
 Window:SelectTab(1)
 
--- Defer loading autoload to ensure all elements are properly mounted in Fluent.Options
+-- Defer loading autoload and force playback to begin automatically
 task.spawn(function()
     task.wait(0.5)
     SaveManager:LoadAutoloadConfig()
+    
+    -- Triggers execution on launch if a valid recording was loaded
+    if #Frames > 0 then
+        PlayToggle:SetValue(true)
+    end
 end)
